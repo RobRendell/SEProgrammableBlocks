@@ -10,40 +10,32 @@ using VRageMath;
 namespace SEProgrammableBlocks {
     public class Program : MyGridProgram {
         /*
-Blargmode's fancy ruler. Version 2.1 (2018-01-28)
-Measure the distance between your camera and some asteroid or whatnot.
-
-
-/// WHAT YOU NEED TO BE A RULER
-Camera with the tag #Ruler in the name.
-Tag(s) on suitable LCDs. (#Ruler tag to show stuff, add #Fancy to do it in style!)
-Recompile! 
-
-
-/// HOW TO RULE
-Run with argument "scan" to, well, scan. Duh.
-Hint; map to toolbar in your ship!
-
-
-/// ADVACED RULING
-Add the tag #Ruler to a Programmable block, a Timer block, and/or a Sound block to
-trigger them with a scan.
-The GPS coordinates are sent to the Programmable blocks as an argument.
-
-Run with argument "scan #" where # is a range in meters, ignoring the setting.
-Run with argument "range #" where # is a range in meters to change the setting.
-
-
-
-
-
-
-
-
-
-
-Change the text in the second quote of each line below if you're adventurous!
-*/
+        Blargmode's fancy ruler. Version 2.1 (2018-01-28)
+        Measure the distance between your camera and some asteroid or whatnot.
+        
+        
+        /// WHAT YOU NEED TO BE A RULER
+        Camera with the tag #Ruler in the name.
+        Tag(s) on suitable LCDs. (#Ruler tag to show stuff, add #Fancy to do it in style!)
+        Recompile! 
+        
+        
+        /// HOW TO RULE
+        Run with argument "scan" to, well, scan. Duh.
+        Hint; map to toolbar in your ship!
+        
+        
+        /// ADVANCED RULING
+        Add the tag #Ruler to a Programmable block, a Timer block, and/or a Sound block to
+        trigger them with a scan.
+        The GPS coordinates are sent to the Programmable blocks as an argument.
+        
+        Run with argument "scan #" where # is a range in meters, ignoring the setting.
+        Run with argument "range #" where # is a range in meters to change the setting.
+        
+        Change the text in the second quote of each line below if you're adventurous!
+        */
+        
         List<string[]> CUSTOM_TYPE_NAME = new List<string[]>() {
             new string[] {"CharacterHuman", "Human"},
             new string[] {"CharacterOther", "Beast"},
@@ -344,7 +336,7 @@ Change the text in the second quote of each line below if you're adventurous!
                 }
                 string combinedFrame = string.Concat(ScreenLines);
                 foreach (var panel in Panels) {
-                    panel.WritePublicText(combinedFrame);
+                    panel.WriteText(combinedFrame);
                 }
             }
 
@@ -745,7 +737,7 @@ Change the text in the second quote of each line below if you're adventurous!
                 var exceptionDump = sb.ToString();
                 var lcd = this.GridTerminalSystem.GetBlockWithName("EXCEPTION DUMP") as IMyTextPanel;
                 Echo(exceptionDump);
-                lcd?.WritePublicText(exceptionDump, append: false);
+                lcd?.WriteText(exceptionDump, append: false);
                 throw;
             }
         }
@@ -773,7 +765,6 @@ Change the text in the second quote of each line below if you're adventurous!
                     Cameras.Last().EnableRaycast = true;
                 } else if (block is IMyTextPanel) {
                     var panel = block as IMyTextPanel;
-                    panel.ShowPublicTextOnScreen();
                     switch (Graphics.GetPanelType(panel.BlockDefinition.SubtypeId)) {
                         case PanelType.Corner:
                             SlimTextPanels.Add(panel);
@@ -839,7 +830,7 @@ Change the text in the second quote of each line below if you're adventurous!
         }
 
         void ConsolePrint() {
-            Echo("Avalible scan range: " + Range);
+            Echo("Available scan range: " + Range);
             if ((long) Settings[ID.Range].Value > 0) Echo("Range limit: " + Settings[ID.Range].Value + "m");
             else Echo("Range limit: -1 (Unlimited)");
             Echo("");
@@ -852,7 +843,7 @@ Change the text in the second quote of each line below if you're adventurous!
                     Echo("Distance: " + Info.GetDistance(TickID));
                     Echo("Time to reach: " + Info.TimeToTarget);
                     Echo("At top speed: " + Info.TimeToTargetTopSpeed);
-                    Echo("GPS: " + "Avalible in \"Custom Data\" here and in attached LCD's.");
+                    Echo("GPS: Available in \"Custom Data\" here and in attached LCDs.");
                     PrintSettingsToCustomData();
                     Me.CustomData = Info.GPS + "\n\n" + Me.CustomData;
                 }
@@ -880,7 +871,7 @@ Change the text in the second quote of each line below if you're adventurous!
                 if (FontSize.ContainsKey(panel.Font)) font = panel.Font;
                 int w = (int) (FontSize[font] / panel.FontSize);
                 if (Info != null && !string.IsNullOrEmpty(Info.GPS)) panel.CustomData = Info.GPS;
-                panel.WritePublicText(text.GetText(w, General.Dots((int) Settings[ID.TextPanelPadding].Value, ' ')));
+                panel.WriteText(text.GetText(w, General.Dots((int) Settings[ID.TextPanelPadding].Value, ' ')));
             }
         }
 
@@ -945,8 +936,7 @@ Change the text in the second quote of each line below if you're adventurous!
                     gps = Info.GPS;
                 }
                 foreach (var panel in SlimTextPanels) {
-                    panel.WritePublicText(text);
-                    panel.ShowPublicTextOnScreen();
+                    panel.WriteText(text);
                     panel.CustomData = gps;
                 }
             }
