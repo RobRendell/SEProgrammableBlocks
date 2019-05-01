@@ -47,7 +47,7 @@ namespace SEProgrammableBlocks {
         class DistanceInfo {
             private Program P;
             private MyDetectedEntityInfo Info;
-            private IMyCameraBlock Camera;
+            public IMyCameraBlock Camera;
             private IMyShipController Controller;
             public string Distance { get; private set; }
             public string Type { get; private set; }
@@ -60,7 +60,7 @@ namespace SEProgrammableBlocks {
             public DistanceInfo(IMyCameraBlock camera, long range, IMyShipController controller, Program p) {
                 P = p;
                 Camera = camera;
-                Info = Camera.Raycast((range < 0.1) ? Camera.AvailableScanRange : range, 0, 0);
+                Info = Camera.Raycast((range <= 0) ? Camera.AvailableScanRange : range, 0, 0);
                 Controller = controller;
                 UpdateTargetInfo();
                 UpdateLocation();
@@ -194,15 +194,10 @@ namespace SEProgrammableBlocks {
 
             public static string AddPrefixKm(double val, bool addSpace = false) {
                 string spacer = addSpace ? " " : "";
-                string unit = "m";
-                if (val >= 1000) {
-                    val = val / 1000;
-                    unit = "km";
-                    if (val < 1000) return val.ToString("0.##") + spacer + unit;
-                    if (val < 1000000) return (val / 1000).ToString("0.##") + spacer + "k" + unit;
-                    if (val < 1000000000) return (val / 1000000).ToString("0.##") + spacer + "M" + unit;
-                }
-                return val.ToString("0.##") + spacer + unit;
+                if (val < 1000) return val.ToString("0.##") + spacer + "m";
+                if (val < 1000000) return (val / 1000).ToString("0.##") + spacer + "km";
+                if (val < 1000000000) return (val / 1000000).ToString("0.##") + spacer + "Mm";
+                return (val / 1000000000).ToString("0.##") + spacer + "Gm";
             }
 
             public static string Dots(int n, char c = '.') {
@@ -691,6 +686,7 @@ namespace SEProgrammableBlocks {
         private List<IMyTerminalBlock> TriggerBlocks;
         public IMyShipController Controller;
         private DistanceInfo Info;
+        private string CurrentCamera = "";
         private string Range = "";
         Graphics GNormal;
         List<IMyTextPanel> SlimTextPanels;
@@ -702,6 +698,7 @@ namespace SEProgrammableBlocks {
             public bool NoLCD = false;
             public bool NoController = false;
             public bool RangeError = false;
+            public string InvalidCommand = "";
         }
 
         public Program() {
@@ -800,24 +797,48 @@ namespace SEProgrammableBlocks {
             Initialized = true;
         }
 
+        private int GetBestCameraIndex(long range) {
+            if (range > 0) {
+                // If we have a max range, find the camera with the lowest charge >= range which is also currently working.
+                var result = Enumerable.Range(0, Cameras.Count).Aggregate(-1, (bestIndex, index) => 
+                    Cameras[index].IsWorking && Cameras[index].AvailableScanRange >= range
+                                             && (bestIndex < 0 || Cameras[index].AvailableScanRange < Cameras[bestIndex].AvailableScanRange)
+                        ? index : bestIndex
+                );
+                if (result >= 0) {
+                    // Only return result if we actually found a camera.
+                    return result;
+                }
+                // Otherwise, fall through and use the camera with the highest charge.
+            }
+            // Use the camera with the highest charge which is also currently working.
+            return Enumerable.Range(0, Cameras.Count).Aggregate(-1, (bestIndex, index) =>
+                Cameras[index].IsWorking && (bestIndex < 0 || Cameras[index].AvailableScanRange > Cameras[bestIndex].AvailableScanRange)
+                ? index : bestIndex
+            );
+        }
+
         private void Input(string argument) {
+            Problem.InvalidCommand = "";
             argument = argument.ToLower();
             if (argument == Strings.Update) {
                 Init();
-            } else if (argument == Strings.ScanArg) {
-                Info = new DistanceInfo(Cameras[0], (long) Settings[ID.Range].Value, Controller, this);
-                Trigger();
             } else if (argument.Contains(Strings.ScanArg)) {
-                long tempNum = 0;
-                if (long.TryParse(System.Text.RegularExpressions.Regex.Match(argument, @"-?\d+").Value, out tempNum)) {
-                    Info = new DistanceInfo(Cameras[0], tempNum, Controller, this);
-                    Trigger();
-                    Problem.RangeError = false;
-                } else {
-                    Problem.RangeError = true;
+                var range = (long) Settings[ID.Range].Value;
+                Problem.RangeError = argument != Strings.ScanArg
+                                     && !long.TryParse(System.Text.RegularExpressions.Regex.Match(argument, @"-?\d+").Value, out range);
+                if (!Problem.RangeError) {
+                    var index = GetBestCameraIndex(range);
+                    if (index >= 0) {
+                        Info = new DistanceInfo(Cameras[index], range, Controller, this);
+                        Trigger();
+                    } else {
+                        Info = null;
+                        Problem.NoCamera = true;
+                    }
                 }
             } else if (argument.Contains(Strings.RangeArg)) {
-                long tempNum = 0;
+                long tempNum;
                 if (long.TryParse(System.Text.RegularExpressions.Regex.Match(argument, @"-?\d+").Value, out tempNum)) {
                     Settings[ID.Range].Value = tempNum;
                     PrintSettingsToCustomData();
@@ -825,46 +846,52 @@ namespace SEProgrammableBlocks {
                 } else {
                     Problem.RangeError = true;
                 }
+            } else {
+                Problem.InvalidCommand = argument;
             }
             DrawAll();
         }
 
         void ConsolePrint() {
+            Echo("Current: " + CurrentCamera);
             Echo("Available scan range: " + Range);
             if ((long) Settings[ID.Range].Value > 0) Echo("Range limit: " + Settings[ID.Range].Value + "m");
             else Echo("Range limit: -1 (Unlimited)");
             Echo("");
             if (Problem.RangeError) Echo(Strings.RangeError);
-            if (Info != null) {
-                if (String.IsNullOrEmpty(Info.Type)) Echo("No scan data");
-                else {
-                    Echo("Type: " + Info.Type);
-                    Echo("Relationship: " + Info.Relationship);
-                    Echo("Distance: " + Info.GetDistance(TickID));
-                    Echo("Time to reach: " + Info.TimeToTarget);
-                    Echo("At top speed: " + Info.TimeToTargetTopSpeed);
-                    Echo("GPS: Available in \"Custom Data\" here and in attached LCDs.");
-                    PrintSettingsToCustomData();
-                    Me.CustomData = Info.GPS + "\n\n" + Me.CustomData;
-                }
+            if (!string.IsNullOrEmpty(Problem.InvalidCommand)) Echo("Invalid command: " + Problem.InvalidCommand);
+            if (Info == null || string.IsNullOrEmpty(Info.Type)) {
+                Echo("No scan data");
+            } else {
+                Echo("Scan by: " + Info.Camera.CustomName);
+                Echo("Type: " + Info.Type);
+                Echo("Relationship: " + Info.Relationship);
+                Echo("Distance: " + Info.GetDistance(TickID));
+                Echo("Time to reach: " + Info.TimeToTarget);
+                Echo("At top speed: " + Info.TimeToTargetTopSpeed);
+                Echo("GPS: Available in \"Custom Data\" here and in attached LCDs.");
+                PrintSettingsToCustomData();
+                Me.CustomData = Info.GPS + "\n\n" + Me.CustomData;
             }
         }
 
         void PanelPrint() {
             var text = new FixedWidthText(70);
             if ((bool) Settings[ID.TextPanelStartWithEmptyLine].Value) text.AppendLine();
+            text.AppendLine("Current: " + CurrentCamera);
             text.AppendLine("Range: " + Range);
             text.AppendLine("&L—");
             if (Problem.RangeError) text.AppendLine(Strings.RangeError);
-            if (Info != null) {
-                if (String.IsNullOrEmpty(Info.Type)) text.AppendLine("No scan data");
-                else {
-                    text.AppendLine("Type: " + ReplaceNames(Info.Type));
-                    text.AppendLine("Relationship: " + Info.Relationship);
-                    text.AppendLine("Distance: " + Info.GetDistance(TickID));
-                    text.AppendLine("Reach in: " + Info.TimeToTarget);
-                    text.AppendLine("At top speed: " + Info.TimeToTargetTopSpeed);
-                }
+            if (!string.IsNullOrEmpty(Problem.InvalidCommand)) text.AppendLine("Invalid command: " + Problem.InvalidCommand);
+            if (Info == null || string.IsNullOrEmpty(Info.Type)) {
+                text.AppendLine("No scan data");
+            } else {
+                text.AppendLine("Scan by: " + Info.Camera.CustomName);
+                text.AppendLine("Type: " + ReplaceNames(Info.Type));
+                text.AppendLine("Relationship: " + Info.Relationship);
+                text.AppendLine("Distance: " + Info.GetDistance(TickID));
+                text.AppendLine("Reach in: " + Info.TimeToTarget);
+                text.AppendLine("At top speed: " + Info.TimeToTargetTopSpeed);
             }
             foreach (var panel in TextPanels) {
                 string font = "Debug";
@@ -915,13 +942,20 @@ namespace SEProgrammableBlocks {
         }
 
         public void UpdateRange() {
-            int fits = 0;
-            Range = General.AddPrefixKm(Cameras[0].AvailableScanRange);
-            if ((long) Settings[ID.Range].Value < 1) {
-                Range = General.AddPrefixKm(Cameras[0].AvailableScanRange);
+            var range = (long) Settings[ID.Range].Value;
+            var cameraIndex = GetBestCameraIndex(range);
+            if (cameraIndex < 0) {
+                CurrentCamera = "No camera!";
+                Range = "";
             } else {
-                fits = (int) Math.Floor(Cameras[0].AvailableScanRange / (long) Settings[ID.Range].Value);
-                Range = General.AddPrefixKm((long) Settings[ID.Range].Value) + "*" + fits;
+                CurrentCamera = Cameras[cameraIndex].CustomName;
+                if (range < 1) {
+                    var scanRange = Cameras[cameraIndex].AvailableScanRange;
+                    Range = General.AddPrefixKm(scanRange);
+                } else {
+                    var numScans = (int) Cameras.Sum(camera => camera.IsWorking ? Math.Floor(camera.AvailableScanRange / range) : 0);
+                    Range = General.AddPrefixKm(range) + " x " + numScans;
+                }
             }
         }
 
@@ -1146,8 +1180,8 @@ namespace SEProgrammableBlocks {
             public const string Update = "update";
             public const string Performance = "Load (avg, peak)";
             public const string SettingsInCustomData = "Settings: See Custom Data.";
-            public const string NoCamera = "No camera found. You need to tag at least one camera with";
-            public const string NoLCD = "No LCDs found. Don't you want one? I would want one.. To get it, tag one or many with";
+            public const string NoCamera = "No working cameras found. You need to tag at least one camera with";
+            public const string NoLCD = "No LCDs found. Don't you want one? I would want one. Tag one or many with";
             public const string RangeError = "Oops, failed to set range.";
         }
     }
