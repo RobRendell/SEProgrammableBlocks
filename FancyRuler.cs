@@ -5,12 +5,13 @@ using System.Text;
 using Sandbox.ModAPI.Ingame;
 using Sandbox.ModAPI.Interfaces;
 using SpaceEngineers.Game.ModAPI;
+using VRage.Game;
 using VRageMath;
 
 namespace SEProgrammableBlocks {
     public class Program : MyGridProgram {
         /*
-        Blargmode's fancy ruler. Version 2.1 (2018-01-28)
+        Blargmode's fancy ruler. Version 2.1 (2018-01-28) + hacks (2019-05-06)
         Measure the distance between your camera and some asteroid or whatnot.
         
         
@@ -27,11 +28,21 @@ namespace SEProgrammableBlocks {
         
         /// ADVANCED RULING
         Add the tag #Ruler to a Programmable block, a Timer block, and/or a Sound block to
-        trigger them with a scan.
-        The GPS coordinates are sent to the Programmable blocks as an argument.
+        trigger them with a scan.  The GPS coordinates are sent to the Programmable blocks as
+        an argument.
         
         Run with argument "scan #" where # is a range in meters, ignoring the setting.
+        
         Run with argument "range #" where # is a range in meters to change the setting.
+        
+        Run with argument "project #" (where # is a range in meters) to create a scan point
+        which is at the given range straight forward from your camera(s).  The scan data does
+        not contain any information about what grid or voxels might be at that point, but is
+        useful if you want to translate a HUD marking to a GPS point.
+        
+        
+        
+         
         
         Change the text in the second quote of each line below if you're adventurous!
         */
@@ -66,6 +77,17 @@ namespace SEProgrammableBlocks {
                 UpdateLocation();
             }
 
+            public DistanceInfo(Vector3 direction, IMyCameraBlock camera, long range, IMyShipController controller, Program p) {
+                P = p;
+                Camera = camera;
+                Controller = controller;
+                var position = camera.GetPosition() + direction * range;
+                Info = new MyDetectedEntityInfo(0, "Projection", MyDetectedEntityType.Unknown, position, MatrixD.Identity, Vector3.Zero,
+                    MyRelationsBetweenPlayerAndBlock.NoOwnership, new BoundingBoxD(), LastTickRun);
+                UpdateTargetInfo();
+                UpdateLocation();
+            }
+
             private void UpdateTargetInfo() {
                 Type = Info.Type.ToString();
                 if (Type == "None") {
@@ -78,10 +100,11 @@ namespace SEProgrammableBlocks {
 
             private void UpdateLocation() {
                 if (Info.HitPosition.HasValue) {
-                    string x = (Info.HitPosition.Value.X.ToString("0.00"));
-                    string y = (Info.HitPosition.Value.Y.ToString("0.00"));
-                    string z = (Info.HitPosition.Value.Z.ToString("0.00"));
-                    GPS = string.Format(":GPS:{0}:{1}:{2}:{3}:", Info.Relationship + " " + DateTime.Now.ToString("yyyy-MM-dd HH.mm.ss"), x, y, z);
+                    var x = (Info.HitPosition.Value.X.ToString("0.00"));
+                    var y = (Info.HitPosition.Value.Y.ToString("0.00"));
+                    var z = (Info.HitPosition.Value.Z.ToString("0.00"));
+                    var name = Info.Relationship == MyRelationsBetweenPlayerAndBlock.NoOwnership ? Info.Name : Info.Relationship + " " + Info.Name;
+                    GPS = string.Format(":GPS:{0}:{1}:{2}:{3}:", name + " " + DateTime.Now.ToString("yyyy-MM-dd HH.mm.ss"), x, y, z);
                 }
             }
 
@@ -818,6 +841,10 @@ namespace SEProgrammableBlocks {
             );
         }
 
+        private bool ParseRange(string argument, out long range) {
+            return long.TryParse(System.Text.RegularExpressions.Regex.Match(argument, @"-?\d+").Value, out range);
+        }
+
         private void Input(string argument) {
             Problem.InvalidCommand = "";
             argument = argument.ToLower();
@@ -825,8 +852,7 @@ namespace SEProgrammableBlocks {
                 Init();
             } else if (argument.Contains(Strings.ScanArg)) {
                 var range = (long) Settings[ID.Range].Value;
-                Problem.RangeError = argument != Strings.ScanArg
-                                     && !long.TryParse(System.Text.RegularExpressions.Regex.Match(argument, @"-?\d+").Value, out range);
+                Problem.RangeError = argument != Strings.ScanArg && !ParseRange(argument, out range);
                 if (!Problem.RangeError) {
                     var index = GetBestCameraIndex(range);
                     if (index >= 0) {
@@ -838,11 +864,26 @@ namespace SEProgrammableBlocks {
                     }
                 }
             } else if (argument.Contains(Strings.RangeArg)) {
-                long tempNum;
-                if (long.TryParse(System.Text.RegularExpressions.Regex.Match(argument, @"-?\d+").Value, out tempNum)) {
-                    Settings[ID.Range].Value = tempNum;
+                long range;
+                if (ParseRange(argument, out range)) {
+                    Settings[ID.Range].Value = range;
                     PrintSettingsToCustomData();
                     Problem.RangeError = false;
+                } else {
+                    Problem.RangeError = true;
+                }
+            } else if (argument.Contains(Strings.ProjectArg)) {
+                long range;
+                if (ParseRange(argument, out range)) {
+                    var index = GetBestCameraIndex(range);
+                    if (index >= 0) {
+                        var forward = Cameras[index].WorldMatrix.GetOrientation().Forward;
+                        Info = new DistanceInfo(forward, Cameras[index], range, Controller, this);
+                        Problem.RangeError = false;
+                    } else {
+                        Info = null;
+                        Problem.NoCamera = true;
+                    }
                 } else {
                     Problem.RangeError = true;
                 }
@@ -861,7 +902,7 @@ namespace SEProgrammableBlocks {
             if (Problem.RangeError) Echo(Strings.RangeError);
             if (!string.IsNullOrEmpty(Problem.InvalidCommand)) Echo("Invalid command: " + Problem.InvalidCommand);
             if (Info == null || string.IsNullOrEmpty(Info.Type)) {
-                Echo("No scan data");
+                Echo("No scan data.");
             } else {
                 Echo("Scan by: " + Info.Camera.CustomName);
                 Echo("Type: " + Info.Type);
@@ -884,7 +925,7 @@ namespace SEProgrammableBlocks {
             if (Problem.RangeError) text.AppendLine(Strings.RangeError);
             if (!string.IsNullOrEmpty(Problem.InvalidCommand)) text.AppendLine("Invalid command: " + Problem.InvalidCommand);
             if (Info == null || string.IsNullOrEmpty(Info.Type)) {
-                text.AppendLine("No scan data");
+                text.AppendLine("No scan data.");
             } else {
                 text.AppendLine("Scan by: " + Info.Camera.CustomName);
                 text.AppendLine("Type: " + ReplaceNames(Info.Type));
@@ -1162,6 +1203,7 @@ namespace SEProgrammableBlocks {
             public const string TextPanelPadding = "Text view - Padding before text";
             public const string RangeArg = "range";
             public const string ScanArg = "scan";
+            public const string ProjectArg = "project";
             public const string SettingsProblem = "Problem with settings";
             public const string IllegibleInput = "Did not understand setting.";
             public const string HasToBeNumber = "Has to be a number.";
