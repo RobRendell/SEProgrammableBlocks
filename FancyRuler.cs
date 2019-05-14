@@ -6,12 +6,13 @@ using Sandbox.ModAPI.Ingame;
 using Sandbox.ModAPI.Interfaces;
 using SpaceEngineers.Game.ModAPI;
 using VRage.Game;
+using VRage.Game.GUI.TextPanel;
 using VRageMath;
 
 namespace SEProgrammableBlocks {
     public class Program : MyGridProgram {
         /*
-        Blargmode's fancy ruler. Version 2.1 (2018-01-28) + hacks (2019-05-06)
+        Blargmode's fancy ruler. Version 2.1 (2018-01-28) + hacks (2019-05-14)
         Measure the distance between your camera and some asteroid or whatnot.
         
         
@@ -30,6 +31,11 @@ namespace SEProgrammableBlocks {
         Add the tag #Ruler to a Programmable block, a Timer block, and/or a Sound block to
         trigger them with a scan.  The GPS coordinates are sent to the Programmable blocks as
         an argument.
+
+        Add the #Ruler tag on multi-display blocks like cockpits to use their LCDs.  By
+        default the first LCD panel is used; tag with #Ruler@1 to use the second panel,
+        #Ruler@2 to use the third panel etc. 
+
         
         Run with argument "scan #" where # is a range in meters, ignoring the setting.
         
@@ -199,7 +205,7 @@ namespace SEProgrammableBlocks {
             }
 
             public static bool ContainsExact(string match, string text) {
-                return System.Text.RegularExpressions.Regex.IsMatch(text, @"(^|\s)" + match + @"(\s|$)");
+                return System.Text.RegularExpressions.Regex.IsMatch(text, @"(^|\s|\b)" + match + @"(\s|\b|$)");
             }
 
             public static string ExtractNumber(string text) {
@@ -284,7 +290,7 @@ namespace SEProgrammableBlocks {
 
 /*This is mostly/https:Edited by Blargmode.Changes:Graphics object now takes a list of panels instead of one.The number 7 visually changed.Adjusted the print function so that x and y represents the top left corner of it.Added text aligment to printEverything about colors ChangedDrawing changed. It will now skip all background pixels after the last forground pixel resulting in a huge reduction in number of pixels sent to other clients.This however forces you to use a few very specific background colors with the default monospace font. It worksgreat with my own font "DotMatrix"(it's on the workshop)which has transparent pixels.https:Methods:SetForeground-Set a named color(need expansion of colors, there's more avalible)SetPreviousForeground-Revert to the last used foreground colorSetBackground-Set a named color(need expansion of colors, there's more avalible)ProgressBar-Draw a progress barFire-Silly fire-ish effect on progress bars. Looks stupid on thick bars.ProgressLine-A slider, similar to progres bar, but it can go past 100%and shows that with an arrow.Map-A super useful method from Arduino to take any range and squeeze it into another range. E.g. for getting how many pixels 25%would be on an x pixels long progress bar.Added public variablesColors*/
         class Graphics {
-            public List<IMyTextPanel> Panels;
+            public List<IMyTextSurface> Panels;
             private string[] Screen;
             private string[] ClearScreen;
             private string[] ScreenLines;
@@ -310,7 +316,7 @@ namespace SEProgrammableBlocks {
                 return Glyphs[code - Offset];
             }
 
-            public Graphics(int width, int height, List<IMyTextPanel> panels, Action<string> echo) {
+            public Graphics(int width, int height, List<IMyTextSurface> panels, Action<string> echo) {
                 Width = width;
                 Height = height;
                 Screen = new string[Width * Height];
@@ -324,19 +330,8 @@ namespace SEProgrammableBlocks {
                 Clear();
             }
 
-            public Graphics(int width, int height, IMyTextPanel panel, Action<string> echo) {
-                Width = width;
-                Height = height;
-                Screen = new string[Width * Height];
-                ClearScreen = new string[Width * Height];
-                ScreenLines = new string[Width * Height + Height - 1];
-                IndexOfLastPixel = new int[Height];
-                Panels = new List<IMyTextPanel>();
-                Panels.Add(panel);
-                Echo = echo;
-                SetBackground(Background, true);
-                Rand = new Random();
-                Clear();
+            public Graphics(int width, int height, IMyTextSurface panel, Action<string> echo)
+                : this(width, height, new List<IMyTextSurface> {panel}, echo) {
             }
 
             public void Pixel(int x, int y) {
@@ -712,8 +707,8 @@ namespace SEProgrammableBlocks {
         private string CurrentCamera = "";
         private string Range = "";
         Graphics GNormal;
-        List<IMyTextPanel> SlimTextPanels;
-        List<IMyTextPanel> TextPanels;
+        List<IMyTextSurface> SlimTextPanels;
+        List<IMyTextSurface> TextPanels;
         public Problems Problem = new Problems();
 
         public class Problems {
@@ -774,34 +769,46 @@ namespace SEProgrammableBlocks {
             ParseUserSettings(Me.CustomData);
             PrintSettingsToCustomData();
             Cameras = new List<IMyCameraBlock>();
-            SlimTextPanels = new List<IMyTextPanel>();
-            TextPanels = new List<IMyTextPanel>();
+            SlimTextPanels = new List<IMyTextSurface>();
+            TextPanels = new List<IMyTextSurface>();
             TriggerBlocks = new List<IMyTerminalBlock>();
+            var tag = (string) Settings[ID.Tag].Value;
+            var tagLength = tag.Length;
             var blocks = new List<IMyTerminalBlock>();
-            GridTerminalSystem.GetBlocksOfType(blocks, x => General.ContainsExact((string) Settings[ID.Tag].Value, x.CustomName));
+            GridTerminalSystem.GetBlocksOfType(blocks, x => General.ContainsExact(tag, x.CustomName));
             foreach (var block in blocks) {
                 if (block is IMyCameraBlock) {
                     Cameras.Add(block as IMyCameraBlock);
                     Cameras.Last().EnableRaycast = true;
-                } else if (block is IMyTextPanel) {
-                    var panel = block as IMyTextPanel;
-                    switch (Graphics.GetPanelType(panel.BlockDefinition.SubtypeId)) {
+                } else if (block is IMyTextSurfaceProvider) {
+                    var panel = block as IMyTextSurface;
+                    switch (Graphics.GetPanelType(block.BlockDefinition.SubtypeId)) {
                         case PanelType.Corner:
                             SlimTextPanels.Add(panel);
                             break;
                         default:
+                            if (panel == null) {
+                                var tagEnd = block.CustomName.IndexOf(tag) + tagLength;
+                                var indexString = (tagEnd + 1 < block.CustomName.Length && block.CustomName[tagEnd] == '@')
+                                    ? new string(block.CustomName.Substring(tagEnd + 1).TakeWhile(char.IsDigit).ToArray())
+                                    : "";
+                                var provider = block as IMyTextSurfaceProvider;
+                                var surfaceIndex = indexString.Length == 0 ? 0 : Math.Min(int.Parse(indexString), provider.SurfaceCount - 1);
+                                panel = provider.GetSurface(surfaceIndex);
+                            }
                             if (General.ContainsExact((string) Settings[ID.FancyTag].Value, block.CustomName)) {
                                 if (GNormal == null) GNormal = new Graphics(59, 59, panel, Echo);
                                 else GNormal.Panels.Add(panel);
                                 panel.FontSize = 0.3f;
-                                if (panel.GetValue<long>("Font") == 151057691) panel.SetValue<long>("Font", 1147350002);
+                                if (block.GetValue<long>("Font") == 151057691) block.SetValue<long>("Font", 1147350002);
                                 else if (panel.Font == "DotMatrix") GNormal.SetBackground(GNormal.BlankPixel);
                             } else {
                                 TextPanels.Add(panel);
                             }
                             break;
                     }
-                } else if (block is IMyProgrammableBlock || block is IMyTimerBlock || block is IMySoundBlock) {
+                }
+                if (block is IMyProgrammableBlock || block is IMyTimerBlock || block is IMySoundBlock) {
                     TriggerBlocks.Add(block);
                 }
             }
@@ -935,10 +942,11 @@ namespace SEProgrammableBlocks {
                 text.AppendLine("At top speed: " + Info.TimeToTargetTopSpeed);
             }
             foreach (var panel in TextPanels) {
-                string font = "Debug";
-                if (FontSize.ContainsKey(panel.Font)) font = panel.Font;
-                int w = (int) (FontSize[font] / panel.FontSize);
-                if (Info != null && !string.IsNullOrEmpty(Info.GPS)) panel.CustomData = Info.GPS;
+                panel.ContentType = ContentType.TEXT_AND_IMAGE;
+                var font = FontSize.ContainsKey(panel.Font) ? panel.Font : "Debug";
+                var w = (int) (FontSize[font] / panel.FontSize);
+                if (Info != null && !string.IsNullOrEmpty(Info.GPS) && panel is IMyTerminalBlock)
+                    ((IMyTerminalBlock)panel).CustomData = Info.GPS;
                 panel.WriteText(text.GetText(w, General.Dots((int) Settings[ID.TextPanelPadding].Value, ' ')));
             }
         }
@@ -1012,7 +1020,7 @@ namespace SEProgrammableBlocks {
                 }
                 foreach (var panel in SlimTextPanels) {
                     panel.WriteText(text);
-                    panel.CustomData = gps;
+                    ((IMyTerminalBlock)panel).CustomData = gps;
                 }
             }
         }
@@ -1035,7 +1043,8 @@ namespace SEProgrammableBlocks {
                 GNormal.Print(x, y + 35, ReplaceNames(Info.Relationship));
                 GNormal.Print(x, y + 42, Info.GetDistance(TickID));
                 GNormal.Print(x, y + 49, Info.TimeToTarget);
-                foreach (var panel in GNormal.Panels) panel.CustomData = Info.GPS;
+                foreach (var panel in GNormal.Panels)
+                    ((IMyTerminalBlock)panel).CustomData = Info.GPS;
             }
             GNormal.Draw();
         }
