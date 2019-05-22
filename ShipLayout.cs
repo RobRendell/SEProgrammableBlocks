@@ -6,11 +6,10 @@ using VRage.Game.ModAPI.Ingame;
 using VRageMath;
 
 namespace SEProgrammableBlocks {
-    public class Program : MyGridProgram {
+    public sealed class Program : MyGridProgram {
         // ShipLayout by zanders3
         // This script displays the layout and health status of your ship or station.
         // To use run this script and add e.g. 'ShipLayout 0' or 'ShipLayoutHealth' to the CustomData of an LCD.
-        
         public Program() {
             Runtime.UpdateFrequency = UpdateFrequency.Update100;
         }
@@ -177,7 +176,7 @@ namespace SEProgrammableBlocks {
                 GridTerminalSystem.GetBlocks(full_blocks);
                 blocks.Clear();
                 for (int i = 0; i < full_blocks.Count; ++i)
-                    if (full_blocks[i].IsFunctional)
+                    if (full_blocks[i].IsFunctional && full_blocks[i].CubeGrid == grid)
                         blocks.Add(new TerminalBlockState { Position = full_blocks[i].Min, Size = full_blocks[i].Max - full_blocks[i].Min + Vector3I.One, State = BlockState.Normal, Block = full_blocks[i] });
                 yield break;
             }
