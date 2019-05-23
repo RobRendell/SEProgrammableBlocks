@@ -163,21 +163,32 @@ namespace SEProgrammableBlocks {
         List<IMyTerminalBlock> healthbars = new List<IMyTerminalBlock>();
         string health_string = "";
         bool want_reset = true;
+        private IMyCubeGrid largestGrid = null;
 
+        private IMyCubeGrid GetLargestCubeGrid(IEnumerable<IMyTerminalBlock> fullBlocks) {
+            var result = Me.CubeGrid;
+            foreach (var terminalBlock in fullBlocks) {
+                if (terminalBlock.CubeGrid.IsSameConstructAs(Me.CubeGrid) && terminalBlock.CubeGrid.GridSize > result.GridSize) {
+                    result = terminalBlock.CubeGrid;
+                }
+            }
+            return result;
+        }
+        
         IEnumerable<bool> RunProgram() {
             Runtime.UpdateFrequency = UpdateFrequency.Update1;
-            IMyCubeGrid grid = Me.CubeGrid;
             if (want_reset) {
                 Echo("Reset Grid!");
+                List<IMyTerminalBlock> fullBlocks = new List<IMyTerminalBlock>();
+                GridTerminalSystem.GetBlocks(fullBlocks);
+                largestGrid = GetLargestCubeGrid(fullBlocks);
                 want_reset = false;
-                foreach (bool val in CheckGrid(grid, false))
+                foreach (bool val in CheckGrid(largestGrid, false))
                     yield return val;
-                List<IMyTerminalBlock> full_blocks = new List<IMyTerminalBlock>();
-                GridTerminalSystem.GetBlocks(full_blocks);
                 blocks.Clear();
-                for (int i = 0; i < full_blocks.Count; ++i)
-                    if (full_blocks[i].IsFunctional && full_blocks[i].CubeGrid == grid)
-                        blocks.Add(new TerminalBlockState { Position = full_blocks[i].Min, Size = full_blocks[i].Max - full_blocks[i].Min + Vector3I.One, State = BlockState.Normal, Block = full_blocks[i] });
+                for (int i = 0; i < fullBlocks.Count; ++i)
+                    if (fullBlocks[i].IsFunctional && fullBlocks[i].CubeGrid == largestGrid)
+                        blocks.Add(new TerminalBlockState { Position = fullBlocks[i].Min, Size = fullBlocks[i].Max - fullBlocks[i].Min + Vector3I.One, State = BlockState.Normal, Block = fullBlocks[i] });
                 yield break;
             }
             //Update grid
@@ -185,11 +196,11 @@ namespace SEProgrammableBlocks {
                 idx = (idx + 1) % funcs.Length;
                 GridTerminalSystem.GetBlocksOfType<IMyTextSurfaceProvider>(lcds, block => block.CustomData.Contains("ShipLayout") && !block.CustomData.Contains("ShipLayoutHealth"));
                 GridTerminalSystem.GetBlocksOfType<IMyTextSurface>(healthbars, block => block.CustomData.Contains("ShipLayoutHealth"));
-                foreach (bool val in CheckGrid(grid, true))
+                foreach (bool val in CheckGrid(largestGrid, true))
                     yield return val;
                 int terminal_healthy = 0;
                 for (int i = 0; i < blocks.Count; ++i) {
-                    bool exists = grid.CubeExists(blocks[i].Position);
+                    bool exists = largestGrid.CubeExists(blocks[i].Position);
                     bool working = blocks[i].Block.IsWorking;
                     if (exists)
                         ++terminal_healthy;
