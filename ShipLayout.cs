@@ -105,7 +105,6 @@ namespace SEProgrammableBlocks {
             Vector3I size = gridmax - gridmin;
             Vector3I sizecube = swizzle(gridmax - gridmin, size * 2);
             float scale = Math.Min(screen.Width, screen.Height) / Math.Max(sizecube.X, sizecube.Y);
-            Vector2 blocksize = new Vector2(scale, scale);
             float xoff = (screen.Width - sizecube.X * scale) * 0.5f + screen.X;
             float yoff = (screen.Width - sizecube.Y * scale) * 0.5f + screen.Y;
             for (int x = 0; x <= sizecube.X; x++)
@@ -200,12 +199,13 @@ namespace SEProgrammableBlocks {
                     yield return val;
                 int terminal_healthy = 0;
                 for (int i = 0; i < blocks.Count; ++i) {
-                    bool exists = largestGrid.CubeExists(blocks[i].Position);
-                    bool working = blocks[i].Block.IsWorking;
+                    var slimBlock = largestGrid.GetCubeBlock(blocks[i].Position);
+                    var exists = slimBlock != null;
+                    var undamaged = exists && slimBlock.IsFullIntegrity;
                     if (exists)
                         ++terminal_healthy;
                     TerminalBlockState s = blocks[i];
-                    s.State = exists && working ? BlockState.Normal : exists ? BlockState.Damaged : BlockState.Destroyed;
+                    s.State = exists ? undamaged ? BlockState.Normal : BlockState.Damaged : BlockState.Destroyed;
                     blocks[i] = s;
                 }
                 int terminal_percent = blocks.Count > 0 ? terminal_healthy * 100 / blocks.Count : 100;
