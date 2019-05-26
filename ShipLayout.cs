@@ -186,13 +186,13 @@ namespace SEProgrammableBlocks {
                     yield return val;
                 blocks.Clear();
                 for (int i = 0; i < fullBlocks.Count; ++i)
-                    if (fullBlocks[i].IsFunctional && fullBlocks[i].CubeGrid == largestGrid)
+                    if (fullBlocks[i].CubeGrid == largestGrid)
                         blocks.Add(new TerminalBlockState { Position = fullBlocks[i].Min, Size = fullBlocks[i].Max - fullBlocks[i].Min + Vector3I.One, State = BlockState.Normal, Block = fullBlocks[i] });
                 yield break;
             }
             //Update grid
             {
-                idx = (idx + 1) % funcs.Length;
+                idx = (idx + 1) % 1000000;
                 GridTerminalSystem.GetBlocksOfType<IMyTextSurfaceProvider>(lcds, block => block.CustomData.Contains("ShipLayout") && !block.CustomData.Contains("ShipLayoutHealth"));
                 GridTerminalSystem.GetBlocksOfType<IMyTextSurface>(healthbars, block => block.CustomData.Contains("ShipLayoutHealth"));
                 foreach (bool val in CheckGrid(largestGrid, true))
@@ -217,25 +217,27 @@ namespace SEProgrammableBlocks {
                 surf.ContentType = ContentType.TEXT_AND_IMAGE;
                 surf.WriteText(health_string);
             }
+            var swizzleIndex = idx % funcs.Length;
+            RotateFunc swizzle = funcs[swizzleIndex];
             //Draw Program screen
             {
                 IMyTextSurface surf = Me.GetSurface(0);
                 surf.ContentType = ContentType.SCRIPT;
                 MySpriteDrawFrame frame = surf.DrawFrame();
-                foreach (bool val in Draw(frame, funcs[idx], new RectangleF(0f, 0f, surf.SurfaceSize.X, surf.SurfaceSize.Y)))
+                foreach (bool val in Draw(frame, swizzle, new RectangleF(0f, 0f, surf.SurfaceSize.X, surf.SurfaceSize.Y)))
                     yield return val;
-                frame.Add(MySprite.CreateText("ShipLayout by zanders3\nAdd ShipLayout " + idx + " or ShipLayoutHealth\nto CustomData on LCD\n" + health_string, "DEBUG", Color.Black));
+                frame.Add(MySprite.CreateText("ShipLayout by zanders3\nAdd ShipLayout " + swizzleIndex + " or ShipLayoutHealth\nto CustomData on LCD\n" + health_string, "DEBUG", Color.Black));
                 frame.Dispose();
             }
             //Draw LCD screen
             {
-                RotateFunc swizzle = funcs[idx];
                 for (int i = 0; i < lcds.Count; ++i) {
                     IMyTerminalBlock lcd = lcds[i];
                     string[] bits = lcd.CustomData.Split(' ');
                     if (bits.Length >= 2) {
+                        var viewIndex = 1 + idx % (bits.Length - 1);
                         int mode;
-                        int.TryParse(bits[1], out mode);
+                        int.TryParse(bits[viewIndex], out mode);
                         swizzle = funcs[mode % funcs.Length];
                     }
 
@@ -254,7 +256,7 @@ namespace SEProgrammableBlocks {
         IEnumerator<bool> current_work;
 
         public void Main(string argument, UpdateType updateSource) {
-            Echo("View " + idx + " LCDs " + lcds.Count);
+            Echo("View " + (idx % funcs.Length) + " LCDs " + lcds.Count);
             Echo("Update Time: " + Runtime.LastRunTimeMs.ToString("F"));
             if (updateSource == UpdateType.Terminal)
                 want_reset = true;
