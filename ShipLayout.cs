@@ -58,7 +58,7 @@ namespace SEProgrammableBlocks {
             XDown, XDown1, XDown2, XDown3, YDown, YDown1, YDown2, YDown3, ZDown, ZDown1, ZDown2, ZDown3
         };
         enum BlockState {
-            Empty, Destroyed, Damaged, Normal
+            Empty, Destroyed, NonFunctional, Damaged, Normal
         }
         BlockState[,,] saved_grid;
         Vector3I gridmin, gridmax;
@@ -87,13 +87,14 @@ namespace SEProgrammableBlocks {
                         if (check_damaged) {
                             if (saved_grid[x - gridmin.X, y - gridmin.Y, z - gridmin.Z] != BlockState.Empty) {
                                 ++total;
-                                if (!grid.CubeExists(pos))
-                                    saved_grid[x - gridmin.X, y - gridmin.Y, z - gridmin.Z] = BlockState.Destroyed;
-                                else
+                                saved_grid[x - gridmin.X, y - gridmin.Y, z - gridmin.Z] = grid.CubeExists(pos) ? BlockState.Normal : BlockState.Destroyed;
+                                if (grid.CubeExists(pos)) {
                                     ++total_healthy;
+                                }
                             }
-                        } else
+                        } else {
                             saved_grid[x - gridmin.X, y - gridmin.Y, z - gridmin.Z] = grid.CubeExists(pos) ? BlockState.Normal : BlockState.Empty;
+                        }
                     }
                 }
                 yield return true;
@@ -147,7 +148,8 @@ namespace SEProgrammableBlocks {
                 if (possize.X < 0) { poscube.X += possize.X + 1; possize.X = -possize.X; }
                 if (possize.Y < 0) { poscube.Y += possize.Y + 1; possize.Y = -possize.Y; }
                 if (possize.Z < 0) { poscube.Z += possize.Z + 1; possize.Z = -possize.Z; }
-                frame.Add(new MySprite(SpriteType.TEXTURE, "SquareHollow", new Vector2((poscube.X + possize.X * 0.5f - 0.5f) * scale + xoff, (poscube.Y + possize.Y * 0.5f - 0.5f) * scale + yoff), new Vector2(possize.X * scale, possize.Y * scale), blocks[i].State == BlockState.Normal ? Color.Green : blocks[i].State == BlockState.Damaged ? Color.Yellow : Color.Red));
+                var colour = blocks[i].State == BlockState.Normal ? Color.Green : blocks[i].State == BlockState.Damaged ? Color.Yellow : blocks[i].State == BlockState.NonFunctional ? Color.Orange : Color.Red;
+                frame.Add(new MySprite(SpriteType.TEXTURE, "SquareHollow", new Vector2((poscube.X + possize.X * 0.5f - 0.5f) * scale + xoff, (poscube.Y + possize.Y * 0.5f - 0.5f) * scale + yoff), new Vector2(possize.X * scale, possize.Y * scale), colour));
             }
         }
 
@@ -202,10 +204,11 @@ namespace SEProgrammableBlocks {
                     var slimBlock = largestGrid.GetCubeBlock(blocks[i].Position);
                     var exists = slimBlock != null;
                     var undamaged = exists && slimBlock.IsFullIntegrity;
+                    var functional = exists && blocks[i].Block.IsFunctional;
                     if (exists)
                         ++terminal_healthy;
                     TerminalBlockState s = blocks[i];
-                    s.State = exists ? undamaged ? BlockState.Normal : BlockState.Damaged : BlockState.Destroyed;
+                    s.State = exists ? undamaged ? BlockState.Normal : functional ? BlockState.Damaged : BlockState.NonFunctional : BlockState.Destroyed;
                     blocks[i] = s;
                 }
                 int terminal_percent = blocks.Count > 0 ? terminal_healthy * 100 / blocks.Count : 100;
