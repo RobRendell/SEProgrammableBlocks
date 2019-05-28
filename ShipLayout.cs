@@ -21,36 +21,36 @@ namespace SEProgrammableBlocks {
         static Vector3I Rot3(Vector3I pos, Vector3I size) { return new Vector3I(pos.Y, size.X - pos.X, pos.Z); }
 
         static Vector3I XUp(Vector3I pos, Vector3I size) { return new Vector3I(pos.Z, pos.Y, pos.X); }
-        static Vector3I YUp(Vector3I pos, Vector3I size) { return new Vector3I(pos.Z, pos.X, pos.Y); }
-        static Vector3I ZUp(Vector3I pos, Vector3I size) { return new Vector3I(pos.X, pos.Y, pos.Z); }
+        static Vector3I YUp(Vector3I pos, Vector3I size) { return new Vector3I(size.Z - pos.Z, pos.X, pos.Y); }
+        static Vector3I ZUp(Vector3I pos, Vector3I size) { return new Vector3I(size.X - pos.X, pos.Y, pos.Z); }
         
-        static Vector3I XUp1(Vector3I pos, Vector3I size) { return Rot1(XUp(pos, size), XUp(size, size)); }
-        static Vector3I XUp2(Vector3I pos, Vector3I size) { return Rot2(XUp(pos, size), XUp(size, size)); }
-        static Vector3I XUp3(Vector3I pos, Vector3I size) { return Rot3(XUp(pos, size), XUp(size, size)); }
+        static Vector3I XUp1(Vector3I pos, Vector3I size) { return Rot1(XUp(pos, size), XUp(size, size * 2)); }
+        static Vector3I XUp2(Vector3I pos, Vector3I size) { return Rot2(XUp(pos, size), XUp(size, size * 2)); }
+        static Vector3I XUp3(Vector3I pos, Vector3I size) { return Rot3(XUp(pos, size), XUp(size, size * 2)); }
         
-        static Vector3I YUp1(Vector3I pos, Vector3I size) { return Rot1(YUp(pos, size), YUp(size, size)); }
-        static Vector3I YUp2(Vector3I pos, Vector3I size) { return Rot2(YUp(pos, size), YUp(size, size)); }
-        static Vector3I YUp3(Vector3I pos, Vector3I size) { return Rot3(YUp(pos, size), YUp(size, size)); }
+        static Vector3I YUp1(Vector3I pos, Vector3I size) { return Rot1(YUp(pos, size), YUp(size, size * 2)); }
+        static Vector3I YUp2(Vector3I pos, Vector3I size) { return Rot2(YUp(pos, size), YUp(size, size * 2)); }
+        static Vector3I YUp3(Vector3I pos, Vector3I size) { return Rot3(YUp(pos, size), YUp(size, size * 2)); }
         
-        static Vector3I ZUp1(Vector3I pos, Vector3I size) { return Rot1(ZUp(pos, size), ZUp(size, size)); }
-        static Vector3I ZUp2(Vector3I pos, Vector3I size) { return Rot2(ZUp(pos, size), ZUp(size, size)); }
-        static Vector3I ZUp3(Vector3I pos, Vector3I size) { return Rot3(ZUp(pos, size), ZUp(size, size)); }
+        static Vector3I ZUp1(Vector3I pos, Vector3I size) { return Rot1(ZUp(pos, size), ZUp(size, size * 2)); }
+        static Vector3I ZUp2(Vector3I pos, Vector3I size) { return Rot2(ZUp(pos, size), ZUp(size, size * 2)); }
+        static Vector3I ZUp3(Vector3I pos, Vector3I size) { return Rot3(ZUp(pos, size), ZUp(size, size * 2)); }
 
-        static Vector3I XDown(Vector3I pos, Vector3I size) { return new Vector3I(pos.Z, pos.Y, size.X - pos.X); }
-        static Vector3I YDown(Vector3I pos, Vector3I size) { return new Vector3I(pos.Z, pos.X, size.Y - pos.Y); }
-        static Vector3I ZDown(Vector3I pos, Vector3I size) { return new Vector3I(pos.X, pos.Y, size.Z - pos.Z); }
+        static Vector3I XDown(Vector3I pos, Vector3I size) { return new Vector3I(pos.Z, size.Y - pos.Y, size.X - pos.X); }
+        static Vector3I YDown(Vector3I pos, Vector3I size) { return new Vector3I(size.Z - pos.Z, size.X - pos.X, size.Y - pos.Y); }
+        static Vector3I ZDown(Vector3I pos, Vector3I size) { return new Vector3I(size.X - pos.X, size.Y - pos.Y, size.Z - pos.Z); }
 
-        static Vector3I XDown1(Vector3I pos, Vector3I size) { return Rot1(XDown(pos, size), XDown(size, size)); }
-        static Vector3I XDown2(Vector3I pos, Vector3I size) { return Rot2(XDown(pos, size), XDown(size, size)); }
-        static Vector3I XDown3(Vector3I pos, Vector3I size) { return Rot3(XDown(pos, size), XDown(size, size)); }
+        static Vector3I XDown1(Vector3I pos, Vector3I size) { return Rot1(XDown(pos, size), XDown(size, size * 2)); }
+        static Vector3I XDown2(Vector3I pos, Vector3I size) { return Rot2(XDown(pos, size), XDown(size, size * 2)); }
+        static Vector3I XDown3(Vector3I pos, Vector3I size) { return Rot3(XDown(pos, size), XDown(size, size * 2)); }
 
-        static Vector3I YDown1(Vector3I pos, Vector3I size) { return Rot1(YDown(pos, size), YDown(size, size)); }
-        static Vector3I YDown2(Vector3I pos, Vector3I size) { return Rot2(YDown(pos, size), YDown(size, size)); }
-        static Vector3I YDown3(Vector3I pos, Vector3I size) { return Rot3(YDown(pos, size), YDown(size, size)); }
+        static Vector3I YDown1(Vector3I pos, Vector3I size) { return Rot1(YDown(pos, size), YDown(size, size * 2)); }
+        static Vector3I YDown2(Vector3I pos, Vector3I size) { return Rot2(YDown(pos, size), YDown(size, size * 2)); }
+        static Vector3I YDown3(Vector3I pos, Vector3I size) { return Rot3(YDown(pos, size), YDown(size, size * 2)); }
 
-        static Vector3I ZDown1(Vector3I pos, Vector3I size) { return Rot1(ZDown(pos, size), ZDown(size, size)); }
-        static Vector3I ZDown2(Vector3I pos, Vector3I size) { return Rot2(ZDown(pos, size), ZDown(size, size)); }
-        static Vector3I ZDown3(Vector3I pos, Vector3I size) { return Rot3(ZDown(pos, size), ZDown(size, size)); }
+        static Vector3I ZDown1(Vector3I pos, Vector3I size) { return Rot1(ZDown(pos, size), ZDown(size, size * 2)); }
+        static Vector3I ZDown2(Vector3I pos, Vector3I size) { return Rot2(ZDown(pos, size), ZDown(size, size * 2)); }
+        static Vector3I ZDown3(Vector3I pos, Vector3I size) { return Rot3(ZDown(pos, size), ZDown(size, size * 2)); }
 
         int idx = 0;
         static RotateFunc[] funcs = new RotateFunc[] {
@@ -102,23 +102,23 @@ namespace SEProgrammableBlocks {
             hull_percent = total > 0 ? total_healthy * 100 / total : 100;
         }
 
-        IEnumerable<bool> Draw(MySpriteDrawFrame frame, RotateFunc swizzle, RectangleF screen) {
-            Vector3I size = gridmax - gridmin;
-            Vector3I sizecube = swizzle(gridmax - gridmin, size * 2);
-            float scale = Math.Min(screen.Width, screen.Height) / Math.Max(sizecube.X, sizecube.Y);
-            float xoff = (screen.Width - sizecube.X * scale) * 0.5f + screen.X;
-            float yoff = (screen.Width - sizecube.Y * scale) * 0.5f + screen.Y;
-            for (int x = 0; x <= sizecube.X; x++)
-                for (int y = 0; y <= sizecube.Y; y++)
+        private IEnumerable<bool> Draw(MySpriteDrawFrame frame, RotateFunc swizzle, RectangleF screen) {
+            var size = gridmax - gridmin;
+            var sizecube = swizzle(size, size * 2);
+            var scale = Math.Min(screen.Width, screen.Height) / Math.Max(sizecube.X, sizecube.Y);
+            var xoff = (screen.Width - sizecube.X * scale) * 0.5f + screen.X;
+            var yoff = (screen.Width - sizecube.Y * scale) * 0.5f + screen.Y;
+            for (var x = 0; x <= sizecube.X; x++)
+                for (var y = 0; y <= sizecube.Y; y++)
                     tiles[x, y] = new TileState();
-            for (int x = gridmin.X; x < gridmax.X; ++x) {
-                for (int y = gridmin.Y; y < gridmax.Y; ++y) {
-                    for (int z = gridmin.Z; z < gridmax.Z; ++z) {
-                        BlockState state = saved_grid[x - gridmin.X, y - gridmin.Y, z - gridmin.Z];
+            for (var x = gridmin.X; x < gridmax.X; ++x) {
+                for (var y = gridmin.Y; y < gridmax.Y; ++y) {
+                    for (var z = gridmin.Z; z < gridmax.Z; ++z) {
+                        var state = saved_grid[x - gridmin.X, y - gridmin.Y, z - gridmin.Z];
                         if (state != BlockState.Empty) {
-                            Vector3I pos = new Vector3I(x, y, z);
-                            Vector3I poscube = swizzle(pos - gridmin, size);
-                            TileState tile = tiles[poscube.X, poscube.Y];
+                            var pos = new Vector3I(x, y, z);
+                            var poscube = swizzle(pos - gridmin, size);
+                            var tile = tiles[poscube.X, poscube.Y];
                             tile.Depth = Math.Max(tile.Depth, poscube.Z);
                             tile.Total++;
                             if (state == BlockState.Normal)
