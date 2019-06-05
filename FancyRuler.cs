@@ -9,7 +9,7 @@ using VRage.Game;
 using VRage.Game.GUI.TextPanel;
 using VRageMath;
 
-namespace SEProgrammableBlocks {
+namespace FancyRuler {
     public class Program : MyGridProgram {
         /*
         Blargmode's fancy ruler. Version 2.1 (2018-01-28) + hacks (2019-05-14)

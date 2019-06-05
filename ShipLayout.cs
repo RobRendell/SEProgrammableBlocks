@@ -6,7 +6,7 @@ using VRage.Game.GUI.TextPanel;
 using VRage.Game.ModAPI.Ingame;
 using VRageMath;
 
-namespace SEProgrammableBlocks {
+namespace ShipLayout {
     public sealed class Program : MyGridProgram {
         // ShipLayout by zanders3
         // This script displays the layout and health status of your ship or station.
