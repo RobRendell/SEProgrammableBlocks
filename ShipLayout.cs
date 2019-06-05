@@ -8,7 +8,7 @@ using VRageMath;
 
 namespace ShipLayout {
     public sealed class Program : MyGridProgram {
-        // ShipLayout by zanders3
+        // ShipLayout by zanders3, with changes by RobRendell
         // This script displays the layout and health status of your ship or station.
         // To use run this script and add e.g. 'ShipLayout 0' or 'ShipLayoutHealth' to the CustomData of an LCD.
         public Program() {
